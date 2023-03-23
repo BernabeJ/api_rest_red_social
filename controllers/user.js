@@ -1,11 +1,14 @@
 //Importar dependecias y modulos
 const bcrypt = require("bcrypt");
 const User = require("../models/user");
+//Importa servicios
+const jwt = require("../services/jwt");
 
 //Acciones de prueba
 const pruebaUser = (req, res) => {
   return res.status(200).send({
     message: "Mensaje enviado desde: controllers/user.js",
+    usuario: req.user,
   });
 };
 
@@ -65,8 +68,53 @@ const register = (req, res) => {
   });
 };
 
+const login = (req, res) => {
+  //Recoger parametros body
+  let params = req.body;
+  if (!params.email || !params.password) {
+    return res.status(400).send({
+      status: "error",
+      message: "faltan datos por enviar",
+    });
+  }
+  //Buscar en la bbdd si existe
+  User.findOne({ email: params.email })
+    //.select({ password: 0 })
+    .exec((error, user) => {
+      if (error || !user)
+        return res.status(404).send({
+          status: "error",
+          message: "No existe el usuario",
+        });
+      //Comprobar su contaseña
+      const pwd = bcrypt.compareSync(params.password, user.password);
+      if (!pwd) {
+        return res.status(400).send({
+          status: "error",
+          message: "No te has identificado correctamente",
+        });
+      }
+      //Devolver Token
+      const token = jwt.createToken(user);
+
+      //Datos del Usuario
+
+      return res.status(200).send({
+        status: "succes",
+        message: "Te has identificado correctamente",
+        user: {
+          id: user._id,
+          name: user.name,
+          nick: user.nick,
+        },
+        token,
+      });
+    });
+};
+
 //Exportar acciones
 module.exports = {
   pruebaUser,
   register,
+  login,
 };
